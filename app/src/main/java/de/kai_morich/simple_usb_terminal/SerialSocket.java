@@ -5,26 +5,35 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.hardware.usb.UsbDeviceConnection;
+import android.util.Log;
 
 import com.hoho.android.usbserial.driver.UsbSerialPort;
 import com.hoho.android.usbserial.util.SerialInputOutputManager;
 
+import org.greenrobot.eventbus.EventBus;
+
 import java.io.IOException;
 import java.util.concurrent.Executors;
 
+import de.kai_morich.simple_usb_terminal.EventBus.Rx;
+import de.kai_morich.simple_usb_terminal.EventBus.Tx;
+
+import static de.kai_morich.simple_usb_terminal.TestPackage.FormatConvert.StringHexToByte;
+import static de.kai_morich.simple_usb_terminal.TestPackage.FormatConvert.bytesToHex;
+
 public class SerialSocket implements SerialInputOutputManager.Listener {
 
-    private static final int WRITE_WAIT_MILLIS = 2000; // 0 blocked infinitely on unprogrammed arduino
+    private static final int WRITE_WAIT_MILLIS = 115200; // 0 blocked infinitely on unprogrammed arduino
 
     private final BroadcastReceiver disconnectBroadcastReceiver;
-
+    private int Long=0;
     private Context context;
     private SerialListener listener;
     private UsbDeviceConnection connection;
     private UsbSerialPort serialPort;
     private SerialInputOutputManager ioManager;
 
-    SerialSocket() {
+    public SerialSocket() {
         disconnectBroadcastReceiver = new BroadcastReceiver() {
             @Override
             public void onReceive(Context context, Intent intent) {
@@ -35,7 +44,7 @@ public class SerialSocket implements SerialInputOutputManager.Listener {
         };
     }
 
-    void connect(Context context, SerialListener listener, UsbDeviceConnection connection, UsbSerialPort serialPort, int baudRate) throws IOException {
+    public void connect(Context context, SerialListener listener, UsbDeviceConnection connection, UsbSerialPort serialPort, int baudRate) throws IOException {
         if(this.serialPort != null)
             throw new IOException("already connected");
         this.context = context;
@@ -51,7 +60,7 @@ public class SerialSocket implements SerialInputOutputManager.Listener {
         Executors.newSingleThreadExecutor().submit(ioManager);
     }
 
-    void disconnect() {
+    public void disconnect() {
         listener = null; // ignore remaining data and errors
         if (ioManager != null) {
             ioManager.setListener(null);
@@ -79,17 +88,27 @@ public class SerialSocket implements SerialInputOutputManager.Listener {
         } catch (Exception ignored) {
         }
     }
-
-    void write(byte[] data) throws IOException {
+    String tmp="";
+    public void write(byte[] data,int Long) throws IOException {
         if(serialPort == null)
             throw new IOException("not connected");
+        Log.d("write",bytesToHex(data));
+        this.Long=Long;
+        tmp="";
+        EventBus.getDefault().post(new Tx(data));
         serialPort.write(data, WRITE_WAIT_MILLIS);
     }
 
     @Override
     public void onNewData(byte[] data) {
         if(listener != null)
-            listener.onSerialRead(data);
+            tmp=tmp+bytesToHex(data);
+        if(tmp.length()==Long||Long==0){
+            listener.onSerialRead(StringHexToByte(tmp));
+
+            Log.d("read",tmp);
+        }
+
     }
 
     @Override

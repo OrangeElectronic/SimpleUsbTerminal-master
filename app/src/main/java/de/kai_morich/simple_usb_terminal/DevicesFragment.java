@@ -41,7 +41,7 @@ public class DevicesFragment extends ListFragment {
     private ArrayList<ListItem> listItems = new ArrayList<>();
     private ArrayAdapter<ListItem> listAdapter;
 
-    private int baudRate = 19200;
+    private int baudRate = 115200;
 
     public DevicesFragment() {
     }

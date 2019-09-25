@@ -13,6 +13,7 @@ import android.hardware.usb.UsbDevice;
 import android.hardware.usb.UsbDeviceConnection;
 import android.hardware.usb.UsbManager;
 import android.os.Bundle;
+import android.os.Handler;
 import android.os.IBinder;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
@@ -21,6 +22,7 @@ import android.text.Spannable;
 import android.text.SpannableStringBuilder;
 import android.text.method.ScrollingMovementMethod;
 import android.text.style.ForegroundColorSpan;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuInflater;
@@ -34,6 +36,20 @@ import com.hoho.android.usbserial.driver.UsbSerialDriver;
 import com.hoho.android.usbserial.driver.UsbSerialPort;
 import com.hoho.android.usbserial.driver.UsbSerialProber;
 
+import org.greenrobot.eventbus.EventBus;
+import org.greenrobot.eventbus.Subscribe;
+import org.greenrobot.eventbus.ThreadMode;
+
+import java.util.ArrayList;
+
+import de.kai_morich.simple_usb_terminal.EventBus.Rx;
+import de.kai_morich.simple_usb_terminal.EventBus.Tx;
+import de.kai_morich.simple_usb_terminal.TestPackage.Command;
+
+import static de.kai_morich.simple_usb_terminal.TestPackage.FormatConvert.StringHexToByte;
+import static de.kai_morich.simple_usb_terminal.TestPackage.RxCommand.A0X10;
+import static de.kai_morich.simple_usb_terminal.TestPackage.RxCommand.RX;
+
 public class TerminalFragment extends Fragment implements ServiceConnection, SerialListener {
 
     private enum Connected { False, Pending, True }
@@ -44,7 +60,7 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
     private String newline = "\r\n";
 
     private TextView receiveText;
-
+public Command command=new Command();
     private SerialSocket socket;
     private SerialService service;
     private boolean initialStart = true;
@@ -70,7 +86,9 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
     public void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setHasOptionsMenu(true);
+        command.terminal=this;
         setRetainInstance(true);
+        EventBus.getDefault().register(this);
         deviceId = getArguments().getInt("device");
         portNum = getArguments().getInt("port");
         baudRate = getArguments().getInt("baud");
@@ -97,6 +115,7 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
     public void onStop() {
         if(service != null && !getActivity().isChangingConfigurations())
             service.detach();
+        EventBus.getDefault().unregister(this);
         super.onStop();
     }
 
@@ -166,6 +185,161 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
         int id = item.getItemId();
+        command.socket=socket;
+        switch (id){
+            case R.id.readsensor:
+                new Thread(new Runnable() {
+                    @Override
+                    public void run() {
+                        command.Command03();
+                    }
+                }).start();
+                return true;
+            case R.id.clearapp:
+                new Thread(new Runnable() {
+                    @Override
+                    public void run() {
+                        command.Command10_00();
+                    }
+                }).start();
+                return true;
+            case R.id.clear:
+
+                receiveText.setText("");
+                return true;
+            case R.id.newline:
+                String[] newlineNames = getResources().getStringArray(R.array.newline_names);
+                String[] newlineValues = getResources().getStringArray(R.array.newline_values);
+                int pos = java.util.Arrays.asList(newlineValues).indexOf(newline);
+                AlertDialog.Builder builder = new AlertDialog.Builder(getActivity());
+                builder.setTitle("Newline");
+                builder.setSingleChoiceItems(newlineNames, pos, (dialog, item1) -> {
+                    newline = newlineValues[item1];
+                    dialog.dismiss();
+                });
+                builder.create().show();
+                return true;
+            case R.id.ProgramSensor:
+                new Thread(new Runnable() {
+                    @Override
+                    public void run() {
+
+                    }
+                }).start();
+                command.Command10_01();
+                return true;
+            case R.id.ReadSensorID:
+                new Thread(new Runnable() {
+                    @Override
+                    public void run() {
+                        command.Command10_FE();
+                    }
+                }).start();
+
+                return true;
+            case R.id.mainflow:
+                new Thread(new Runnable() {
+                    @Override
+                    public void run() {
+                        command.Command14();
+                    }
+                }).start();
+
+                return true;
+            case R.id.writesensorID:
+                new Thread(new Runnable() {
+                    @Override
+                    public void run() {
+                        command.Command17();
+                    }
+                }).start();
+
+                return true;
+            case R.id.LoadData:
+                new Thread(new Runnable() {
+                    @Override
+                    public void run() {
+                        command.LogData("SI2056.s19");
+                    }
+                }).start();
+
+               return true;
+            case R.id.LoadData2:
+                new Thread(new Runnable() {
+                    @Override
+                    public void run() {
+                        command.LogData("BEA001.s19");
+                    }
+                }).start();
+                return true;
+            case R.id.Program:
+                new Thread(new Runnable() {
+                    @Override
+                    public void run() {
+                        boolean condition=command.ProgramStep("SI2056.s19");
+                          handler.post(new Runnable() {
+                              @Override
+                              public void run() {
+                                  if(condition){
+                                      receiveText.append("燒錄成功");
+                                  }else{
+                                      for(String a:command.FALSE_CHANNEL){
+                                          receiveText.append("channel"+a+"燒錄失敗\n");
+                                      }
+
+                                  }
+                              }
+                          });
+                    }
+                }).start();
+
+                return true;
+            case R.id.Command_15:
+                new Thread(new Runnable() {
+                    @Override
+                    public void run() {
+                        command.Command15();
+                    }
+                }).start();
+                return true;
+            case R.id.Command_11:
+
+                    new Thread(new Runnable() {
+                        @Override
+                        public void run() {
+
+                            boolean Ch1=command.Command_11(0,1);
+                            handler.post(new Runnable() {
+                                @Override
+                                public void run() {
+//                                    receiveText.append(command.ID);
+                                    receiveText.append("\nid為"+command.ID);
+                                }
+                            });
+
+                    }}).start();
+
+                return true;
+            case R.id.Command_12:
+                new Thread(new Runnable() {
+                    @Override
+                    public void run() {
+                        boolean a=command.Command12(0,0,"12345678");
+                        handler.post(new Runnable() {
+                            @Override
+                            public void run() {
+                                if(a){
+                                    receiveText.append("\n燒錄成功id為"+command.ID);
+                                }else{
+                                    receiveText.append("\n燒錄失敗");
+                                }
+                            }
+                        });
+
+                    }
+                }).start();
+                return true;
+        }
         if (id == R.id.clear) {
             receiveText.setText("");
             return true;
@@ -185,7 +359,7 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
             return super.onOptionsItemSelected(item);
         }
     }
-
+private Handler handler=new Handler();
     /*
      * Serial + UI
      */
@@ -252,24 +426,24 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
         socket = null;
     }
 
-    private void send(String str) {
+    public void send(String str) {
         if(connected != Connected.True) {
             Toast.makeText(getActivity(), "not connected", Toast.LENGTH_SHORT).show();
             return;
         }
         try {
-            SpannableStringBuilder spn = new SpannableStringBuilder(str+'\n');
+
+            SpannableStringBuilder spn = new SpannableStringBuilder(str);
             spn.setSpan(new ForegroundColorSpan(getResources().getColor(R.color.colorSendText)), 0, spn.length(), Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
-            receiveText.append(spn);
-            byte[] data = (str + newline).getBytes();
-            socket.write(data);
+            socket.write(StringHexToByte(str),0);
+            receiveText.append("TX:"+spn+"\n\n");
         } catch (Exception e) {
             onSerialIoError(e);
         }
     }
 
     private void receive(byte[] data) {
-        receiveText.append("Rx:"+bytesToHex(data));
+                  receiveText.append("RX:"+RX(data,this)+"\n\n");
     }
     private static String bytesToHex(byte[] hashInBytes) {
         StringBuilder sb = new StringBuilder();
@@ -296,7 +470,7 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
 
     @Override
     public void onSerialConnectError(Exception e) {
-        status("connection failed: " + e.getMessage());
+        status("connection failed:   " + e.getMessage());
         disconnect();
     }
 
@@ -310,5 +484,20 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
         status("connection lost: " + e.getMessage());
         disconnect();
     }
-
+    @Subscribe(threadMode = ThreadMode.MAIN)
+    public void Event(Rx a){
+        try{
+            SpannableStringBuilder spn = new SpannableStringBuilder(bytesToHex(a.getReback()));
+            spn.setSpan(new ForegroundColorSpan(getResources().getColor(R.color.colorSendText)), 0, spn.length(), Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
+            receiveText.append("\nRX:"+spn+"\n\n");
+        }catch (Exception e){Log.w("error",e.getMessage());}
+    }
+    @Subscribe(threadMode = ThreadMode.MAIN)
+    public void Event(Tx a){
+        try{
+            SpannableStringBuilder spn = new SpannableStringBuilder(bytesToHex(a.getReback()));
+            spn.setSpan(new ForegroundColorSpan(getResources().getColor(R.color.colorRecieveText)), 0, spn.length(), Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
+            receiveText.append("\nTX:"+spn+"\n\n");
+        }catch (Exception e){Log.w("error",e.getMessage());}
+    }
 }

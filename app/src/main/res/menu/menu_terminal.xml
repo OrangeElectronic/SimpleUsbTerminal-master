@@ -5,8 +5,57 @@
         android:id="@+id/clear"
         android:icon="@drawable/ic_delete_white_24dp"
         android:title="Clear"
+        android:visible="false"
         app:showAsAction="always" />
     <item
         android:id="@+id/newline"
-        android:title="Newline Mode" />
+        android:title="Newline Mode"
+        android:visible="false" />
+    <item
+        android:id="@+id/readsensor"
+        android:title="Command03"
+        android:visible="false" />
+    <item
+        android:id="@+id/clearapp"
+        android:title="command10_00"
+        android:visible="false" />
+    <item
+        android:id="@+id/ProgramSensor"
+        android:title="Command10_01"
+        android:visible="false" />
+    <item
+        android:id="@+id/ReadSensorID"
+        android:title="Command10_FE"
+        android:visible="false" />
+    <item
+        android:id="@+id/mainflow"
+        android:title="Command14_FE"
+        android:visible="false" />
+    <item
+        android:id="@+id/writesensorID"
+        android:title="Command17"
+        android:visible="false" />
+    <item
+        android:id="@+id/LoadData"
+        android:title="Command_13"
+        android:visible="false" />
+    <item
+        android:id="@+id/LoadData2"
+        android:title="LoadData2"
+        android:visible="false" />
+    <item
+        android:id="@+id/Program"
+        android:title="Program"
+        android:visible="false" />
+    <item
+        android:id="@+id/Command_15"
+        android:title="Command_15"
+        android:visible="false" />
+    <item
+        android:id="@+id/Command_11"
+        android:title="Command_11" />
+    <item
+        android:id="@+id/Command_12"
+        android:title="Command_12"
+        android:visible="false" />
 </menu>
